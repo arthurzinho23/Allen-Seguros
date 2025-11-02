@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allen Seguros – Sistema de Gestão</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f4f4f8; margin:0; padding:0; color:#222; transition: all 0.3s ease;}
+  header { background:#111; color:#fff; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 6px rgba(0,0,0,0.3);}
+  header h1 { font-size:1.4em; }
+  #btnPainel { background:#222; color:#fff; border:none; padding:8px 12px; cursor:pointer; border-radius:5px; transition: 0.3s; }
+  #btnPainel:hover { background:#444; }
+  main { padding:20px; max-width:900px; margin:auto; transition: all 0.3s ease;}
+  label { display:block; margin-top:10px; font-weight:bold; }
+  input, select, textarea { width:100%; padding:8px; margin-top:5px; border-radius:5px; border:1px solid #ccc; box-sizing:border-box; transition: 0.3s; }
+  input:focus, select:focus, textarea:focus { border-color:#111; outline:none; box-shadow:0 0 5px rgba(0,0,0,0.2);}
+  button { margin-top:15px; padding:10px 15px; border:none; border-radius:5px; cursor:pointer; background:#111; color:#fff; transition: 0.3s; }
+  button:hover { background:#222; }
+  #notificacao { background:#4CAF50; color:#fff; padding:10px; margin-top:10px; display:none; border-radius:5px; opacity:0; transition: opacity 0.5s ease;}
+  #notificacao.show { display:block; opacity:1;}
+  #painel { display:none; background:#fff; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); position:fixed; top:0; left:0; width:100%; height:100%; overflow:auto; transition: all 0.5s ease;}
+  .seguro-item { background:#eee; padding:10px; margin:10px 0; border-radius:5px; transition: 0.3s;}
+  .seguro-item:hover { background:#ddd; }
+  .status-pago { color:green; font-weight:bold; }
+  .status-pendente { color:red; font-weight:bold; }
+  details summary { cursor:pointer; font-weight:bold; margin-top:5px;}
+  #btnVoltar { background:#555; margin-top:10px; }
+  
+  /* Modal senha */
+  #modalSenha { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); justify-content:center; align-items:center; }
+  #modalConteudo { background:#fff; padding:30px; border-radius:10px; width:300px; text-align:center; }
+  #modalConteudo input { width:100%; margin-top:10px; padding:8px; }
+  #modalConteudo button { width:100%; margin-top:15px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Allen Seguros – Sistema de Gestão</h1>
+  <button id="btnPainel" onclick="abrirModal()">Painel</button>
+</header>
+
+<main id="mainTela">
+  <label for="cliente">Nome do Cliente:</label>
+  <input type="text" id="cliente">
+
+  <label for="ramo">Ramo do Seguro:</label>
+  <select id="ramo" onchange="mostrarCampos()">
+    <option value="CARRO">Carro</option>
+    <option value="CASA">Casa</option>
+    <option value="SAUDE">Saúde</option>
+  </select>
+
+  <div id="campoValor">
+    <label for="valor">Valor do Bem (R$):</label>
+    <input type="number" id="valor" placeholder="Digite o valor do carro ou casa">
+  </div>
+
+  <div id="campoTipo">
+    <label for="tipo">Tipo/Nível do Seguro:</label>
+    <select id="tipo">
+      <option value="BASICO">BÁSICO</option>
+      <option value="MEDIO">MÉDIO</option>
+      <option value="PREMIUM">PREMIUM</option>
+      <option value="BLACK">BLACK</option>
+    </select>
+  </div>
+
+  <div id="campoSaude" style="display:none;">
+    <label for="planoSaude">Plano de Saúde:</label>
+    <select id="planoSaude">
+      <option value="BASICO">BÁSICO</option>
+      <option value="MEDIO">MÉDIO</option>
+      <option value="PREMIUM">PREMIUM</option>
+      <option value="BLACK">BLACK</option>
+    </select>
+  </div>
+
+  <button onclick="gerarContrato()">Gerar Contrato</button>
+  <button onclick="adicionarSeguro()">Adicionar ao Painel</button>
+
+  <textarea id="contrato" rows="20" readonly style="margin-top:10px; background:#f9f9f9; border:1px solid #ccc;"></textarea>
+  <div id="notificacao"></div>
+</main>
+
+<!-- Modal senha -->
+<div id="modalSenha">
+  <div id="modalConteudo">
+    <h2>Digite a senha do Painel</h2>
+    <input type="password" id="inputSenha" placeholder="Senha">
+    <button onclick="verificarSenha()">Entrar</button>
+  </div>
+</div>
+
+<!-- Painel Admin -->
+<div id="painel">
+  <h2>Painel de Seguros</h2>
+  <div id="listaSeguros"></div>
+  <button id="btnVoltar" onclick="fecharPainel()">Voltar</button>
+</div>
+
+<script>
+let seguros = [];
+const senhaPainel = "708446";
+
+function mostrarCampos(){
+  const ramo = document.getElementById("ramo").value;
+  if(ramo === "SAUDE"){
+    document.getElementById("campoValor").style.display = "none";
+    document.getElementById("campoTipo").style.display = "none";
+    document.getElementById("campoSaude").style.display = "block";
+  } else {
+    document.getElementById("campoValor").style.display = "block";
+    document.getElementById("campoTipo").style.display = "block";
+    document.getElementById("campoSaude").style.display = "none";
+  }
+}
+
+function abrirModal() { document.getElementById("modalSenha").style.display="flex"; }
+function verificarSenha() {
+  const senha = document.getElementById("inputSenha").value;
+  if(senha === senhaPainel){
+    document.getElementById("modalSenha").style.display="none";
+    document.getElementById("mainTela").style.display="none";
+    document.getElementById("painel").style.display="block";
+    atualizarPainel();
+  } else alert("Senha incorreta!");
+}
+function fecharPainel() {
+  document.getElementById("painel").style.display="none";
+  document.getElementById("mainTela").style.display="block";
+}
+
+function gerarContrato() {
+  const cliente = document.getElementById("cliente").value || "CLIENTE";
+  const ramo = document.getElementById("ramo").value;
+  const dataAtual = new Date().toLocaleDateString("pt-BR");
+  let contrato="";
+
+  if(ramo==="SAUDE"){
+    const plano = document.getElementById("planoSaude").value;
+    let valorPlano=0, clausulas="";
+    switch(plano){
+      case "BASICO": valorPlano=2000; clausulas="1. Consultas básicas reembolsáveis.\n2. Medicamentos essenciais.\n3. Emergência limitada.\n4. Exames simples."; break;
+      case "MEDIO": valorPlano=4000; clausulas="1. Reembolso internações.\n2. Cobertura parcial exames.\n3. Consultas especialistas.\n4. Vacinação incluída."; break;
+      case "PREMIUM": valorPlano=7000; clausulas="1. Reembolso completo internações.\n2. Medicamentos de alto custo.\n3. Consultas ilimitadas.\n4. Psicologia/Terapia."; break;
+      case "BLACK": valorPlano=12000; clausulas="1. Cobertura total hospitais credenciados.\n2. Todos os medicamentos.\n3. Consultas ilimitadas + telemedicina.\n4. Psicologia, psiquiatria, terapias alternativas.\n5. Transporte VIP."; break;
+    }
+    contrato=`───────────────────────────────
+CONTRATO DE SEGURO DE SAÚDE
+───────────────────────────────
+Cliente: ${cliente}
+Plano contratado: ${plano}
+Valor semanal: $${valorPlano}
+Data de geração: ${dataAtual}
+Cláusulas:
+${clausulas}
+
+Assinatura do cliente: _____________________________
+Data: ${dataAtual}
+───────────────────────────────`;
+  } else {
+    const tipo = document.getElementById("tipo").value;
+    const valor = parseFloat(document.getElementById("valor").value) || 0;
+    let percentualSeguro=2, percentualFranquia=5, clausulas="";
+    switch(tipo){
+      case "BASICO": percentualSeguro=2; percentualFranquia=5; clausulas=`1. Responsabilidade civil a terceiros.\n2. Assistência emergencial simples.\n3. Franquia ${percentualFranquia}% ($${(valor*percentualFranquia/100).toFixed(2)})`; break;
+      case "MEDIO": percentualSeguro=4; percentualFranquia=6; clausulas=`1. Cobertura colisão e danos próprios.\n2. Compreensivo: roubo, vandalismo, incêndio.\n3. Cobertura de vidros.\n4. Guincho limitado, troca de pneus, bateria, combustível.\n5. Franquia ${percentualFranquia}% ($${(valor*percentualFranquia/100).toFixed(2)})`; break;
+      case "PREMIUM": percentualSeguro=6; percentualFranquia=7; clausulas=`1. Assistência avançada: guincho ilimitado, desbloqueio, chaveiro.\n2. Proteção jurídica.\n3. Proteção de acessórios.\n4. Cobertura de danos pessoais.\n5. Proteção contra incêndio/explosão.\n6. Franquia ${percentualFranquia}% ($${(valor*percentualFranquia/100).toFixed(2)})`; break;
+      case "BLACK": percentualSeguro=20; percentualFranquia=15; clausulas=`1. Carro reserva.\n2. Catástrofes naturais.\n3. Assistência 24h VIP.\n4. Roubo total.\n5. Perda de chave.\n6. Reembolso viagens interrompidas.\n7. Avaliação anual.\n8. Indenização extra carros de luxo/importados.\n9. Franquia ${percentualFranquia}% ($${(valor*percentualFranquia/100).toFixed(2)})`; break;
+    }
+    const valorSemanal = (valor*percentualSeguro/100).toFixed(2);
+    const valorFranquia = (valor*percentualFranquia/100).toFixed(2);
+
+    contrato=`───────────────────────────────
+CONTRATO DE SEGURO
+───────────────────────────────
+Cliente: ${cliente}
+Ramo do seguro: ${ramo}
+Tipo de seguro: ${tipo}
+Valor segurado: $${valor}
+Valor semanal do seguro: $${valorSemanal}
+Valor da franquia: $${valorFranquia}
+Data de geração: ${dataAtual}
+Cláusulas:
+${clausulas}
+
+Assinatura do cliente: _____________________________
+Data: ${dataAtual}
+───────────────────────────────`;
+  }
+
+  document.getElementById("contrato").value = contrato;
+  const notif = document.getElementById("notificacao");
+  notif.innerText = "Contrato gerado com sucesso!";
+  notif.classList.add("show");
+  setTimeout(()=>notif.classList.remove("show"),2500);
+}
+
+function adicionarSeguro() {
+  const texto = document.getElementById("contrato").value;
+  if(!texto){ alert("Gere o contrato primeiro."); return; }
+  seguros.push({texto: texto, pago:false});
+  atualizarPainel();
+  const notif = document.getElementById("notificacao");
+  notif.innerText = "Seguro adicionado ao painel!";
+  notif.classList.add("show");
+  setTimeout(()=>notif.classList.remove("show"),2500);
+}
+
+function atualizarPainel() {
+  const lista = document.getElementById("listaSeguros");
+  lista.innerHTML = "";
+  seguros.forEach((s,i)=>{
+    const div = document.createElement("div");
+    div.className="seguro-item";
+    div.innerHTML=`
+      <details>
+        <summary>Registro ${i+1} – Cliente: ${extrairNome(s.texto)} – Status: ${s.pago?"Pago":"Pendente"}</summary>
+        <pre>${s.texto}</pre>
+        <button onclick="removerSeguro(${i})">Remover</button>
+        <button onclick="alterarStatus(${i})">Alterar Status</button>
+      </details>`;
+    lista.appendChild(div);
+  });
+}
+
+function removerSeguro(i){
+  seguros.splice(i,1);
+  atualizarPainel();
+}
+
+function alterarStatus(i){
+  seguros[i].pago = !seguros[i].pago;
+  atualizarPainel();
+}
+
+function extrairNome(texto){
+  const match = texto.match(/Cliente:\s*(.*)/);
+  return match ? match[1] : "Cliente Desconhecido";
+}
+</script>
+</body>
+</html>
